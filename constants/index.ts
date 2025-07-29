@@ -1,5 +1,5 @@
-// import { CreateAssistantDTO } from "@vapi-ai/web/dist/api";
-// import { z } from "zod";
+import { CreateAssistantDTO } from "@vapi-ai/web/dist/api";
+import { z } from "zod";
 
 export const mappings = {
   "react.js": "react",
@@ -95,99 +95,188 @@ export const mappings = {
   netlify: "netlify",
   vercel: "vercel",
   "aws amplify": "amplify",
+
+  // Added technologies
+  python: "python",
+  django: "django",
+  flask: "flask",
+  fastapi: "fastapi",
+  "ruby on rails": "rails",
+  rails: "rails",
+  ruby: "ruby",
+  php: "php",
+  laravel: "laravel",
+  symfony: "symfony",
+  java: "java",
+  spring: "spring",
+  "spring boot": "spring",
+  kotlin: "kotlin",
+  scala: "scala",
+  go: "go",
+  golang: "go",
+  rust: "rust",
+  swift: "swift",
+  "c#": "csharp",
+  csharp: "csharp",
+  ".net": "dotnet",
+  dotnet: "dotnet",
+  c: "c",
+  "c++": "cpp",
+  cpp: "cpp",
+  elasticsearch: "elasticsearch",
+  kibana: "kibana",
+  logstash: "logstash",
+  kafka: "kafka",
+  rabbitmq: "rabbitmq",
+  solr: "solr",
+  cassandra: "cassandra",
+  hadoop: "hadoop",
+  spark: "spark",
+  terraform: "terraform",
+  ansible: "ansible",
+  jenkins: "jenkins",
+  circleci: "circleci",
+  "github actions": "github-actions",
+  svelte: "svelte",
+  flutter: "flutter",
+  dart: "dart",
+  "react native": "react-native",
+  electron: "electron",
+  ionic: "ionic",
+  xamarin: "xamarin",
+  tensorflow: "tensorflow",
+  pytorch: "pytorch",
+  keras: "keras",
+  scikit: "scikit-learn",
+  "scikit-learn": "scikit-learn",
+  pandas: "pandas",
+  numpy: "numpy",
+  jupyter: "jupyter",
+  pnpm: "pnpm",
+  deno: "deno",
+  vite: "vite",
+  vitest: "vitest",
+  storybook: "storybook",
+  supabase: "supabase",
+  "material ui": "mui",
+  mui: "mui",
+  chakra: "chakra-ui",
+  "chakra ui": "chakra-ui",
+  "styled components": "styled-components",
+  emotion: "emotion",
+  threejs: "three",
+  "three.js": "three",
+  d3: "d3",
+  "d3.js": "d3",
+  webgl: "webgl",
+  pwa: "pwa",
+  "progressive web app": "pwa",
+  astro: "astro",
+  qwik: "qwik",
+  solid: "solidjs",
+  solidjs: "solidjs",
+  postgis: "postgis",
+  nginx: "nginx",
+  apache: "apache",
+  caddy: "caddy",
+  traefik: "traefik",
+  prometheus: "prometheus",
+  grafana: "grafana",
+  "docker compose": "docker-compose",
+  podman: "podman",
 };
 
-// export const interviewer: CreateAssistantDTO = {
-//   name: "Interviewer",
-//   firstMessage:
-//     "Hello! Thank you for taking the time to speak with me today. I'm excited to learn more about you and your experience.",
-//   transcriber: {
-//     provider: "deepgram",
-//     model: "nova-2",
-//     language: "en",
-//   },
-//   voice: {
-//     provider: "11labs",
-//     voiceId: "sarah",
-//     stability: 0.4,
-//     similarityBoost: 0.8,
-//     speed: 0.9,
-//     style: 0.5,
-//     useSpeakerBoost: true,
-//   },
-//   model: {
-//     provider: "openai",
-//     model: "gpt-4",
-//     messages: [
-//       {
-//         role: "system",
-//         content: `You are a professional job interviewer conducting a real-time voice interview with a candidate. Your goal is to assess their qualifications, motivation, and fit for the role.
+export const interviewer: CreateAssistantDTO = {
+  name: "Interviewer",
+  firstMessage:
+      "Hello! Thank you for taking the time to speak with me today. I'm excited to learn more about you and your experience.",
+  transcriber: {
+    provider: "deepgram",
+    model: "nova-2",
+    language: "en",
+  },
+  voice: {
+    provider: "11labs",
+    voiceId: "sarah",
+    stability: 0.4,
+    similarityBoost: 0.8,
+    speed: 0.9,
+    style: 0.5,
+    useSpeakerBoost: true,
+  },
+  model: {
+    provider: "openai",
+    model: "gpt-4",
+    messages: [
+      {
+        role: "system",
+        content: `You are a professional job interviewer conducting a real-time voice interview with a candidate. Your goal is to assess their qualifications, motivation, and fit for the role.
 
-// Interview Guidelines:
-// Follow the structured question flow:
-// {{questions}}
+Interview Guidelines:
+Follow the structured question flow:
+{{questions}}
 
-// Engage naturally & react appropriately:
-// Listen actively to responses and acknowledge them before moving forward.
-// Ask brief follow-up questions if a response is vague or requires more detail.
-// Keep the conversation flowing smoothly while maintaining control.
-// Be professional, yet warm and welcoming:
+Engage naturally & react appropriately:
+Listen actively to responses and acknowledge them before moving forward.
+Ask brief follow-up questions if a response is vague or requires more detail.
+Keep the conversation flowing smoothly while maintaining control.
+Be professional, yet warm and welcoming:
 
-// Use official yet friendly language.
-// Keep responses concise and to the point (like in a real voice interview).
-// Avoid robotic phrasing—sound natural and conversational.
-// Answer the candidate’s questions professionally:
+Use official yet friendly language.
+Keep responses concise and to the point (like in a real voice interview).
+Avoid robotic phrasing—sound natural and conversational.
+Answer the candidate’s questions professionally:
 
-// If asked about the role, company, or expectations, provide a clear and relevant answer.
-// If unsure, redirect the candidate to HR for more details.
+If asked about the role, company, or expectations, provide a clear and relevant answer.
+If unsure, redirect the candidate to HR for more details.
 
-// Conclude the interview properly:
-// Thank the candidate for their time.
-// Inform them that the company will reach out soon with feedback.
-// End the conversation on a polite and positive note.
+Conclude the interview properly:
+Thank the candidate for their time.
+Inform them that the company will reach out soon with feedback.
+End the conversation on a polite and positive note.
 
 
-// - Be sure to be professional and polite.
-// - Keep all your responses short and simple. Use official language, but be kind and welcoming.
-// - This is a voice conversation, so keep your responses short, like in a real conversation. Don't ramble for too long.`,
-//       },
-//     ],
-//   },
-// };
+- Be sure to be professional and polite.
+- Keep all your responses short and simple. Use official language, but be kind and welcoming.
+- This is a voice conversation, so keep your responses short, like in a real conversation. Don't ramble for too long.`,
+      },
+    ],
+  },
+};
 
-// export const feedbackSchema = z.object({
-//   totalScore: z.number(),
-//   categoryScores: z.tuple([
-//     z.object({
-//       name: z.literal("Communication Skills"),
-//       score: z.number(),
-//       comment: z.string(),
-//     }),
-//     z.object({
-//       name: z.literal("Technical Knowledge"),
-//       score: z.number(),
-//       comment: z.string(),
-//     }),
-//     z.object({
-//       name: z.literal("Problem Solving"),
-//       score: z.number(),
-//       comment: z.string(),
-//     }),
-//     z.object({
-//       name: z.literal("Cultural Fit"),
-//       score: z.number(),
-//       comment: z.string(),
-//     }),
-//     z.object({
-//       name: z.literal("Confidence and Clarity"),
-//       score: z.number(),
-//       comment: z.string(),
-//     }),
-//   ]),
-//   strengths: z.array(z.string()),
-//   areasForImprovement: z.array(z.string()),
-//   finalAssessment: z.string(),
-// });
+export const feedbackSchema = z.object({
+  totalScore: z.number(),
+  categoryScores: z.tuple([
+    z.object({
+      name: z.literal("Communication Skills"),
+      score: z.number(),
+      comment: z.string(),
+    }),
+    z.object({
+      name: z.literal("Technical Knowledge"),
+      score: z.number(),
+      comment: z.string(),
+    }),
+    z.object({
+      name: z.literal("Problem Solving"),
+      score: z.number(),
+      comment: z.string(),
+    }),
+    z.object({
+      name: z.literal("Cultural Fit"),
+      score: z.number(),
+      comment: z.string(),
+    }),
+    z.object({
+      name: z.literal("Confidence and Clarity"),
+      score: z.number(),
+      comment: z.string(),
+    }),
+  ]),
+  strengths: z.array(z.string()),
+  areasForImprovement: z.array(z.string()),
+  finalAssessment: z.string(),
+});
 
 export const interviewCovers = [
   "/adobe.png",
@@ -204,7 +293,7 @@ export const interviewCovers = [
   "/yahoo.png",
 ];
 
- export const dummyInterviews: Interview[] = [
+export const dummyInterviews: Interview[] = [
   {
     id: "1",
     userId: "user1",
