@@ -21,6 +21,8 @@ const Agent = ({ userName, userId, type } : AgentProps) => {
     const [isSpeaking, setIsSpeaking] = useState(false);
     const [callStatus, setCallStatus] = useState<CallStatus>(CallStatus.INACTIVE);
     const [messages, setMessages] = useState<SavedMessage[]>([]);
+    const [lastMessage, setLastMessage] = useState<string>("");
+
 
     useEffect(() => {
         const onCallStart = () => setCallStatus(CallStatus.ACTIVE);
@@ -54,17 +56,24 @@ const Agent = ({ userName, userId, type } : AgentProps) => {
     }, []);
 
     useEffect(() => {
+        if (messages.length > 0) {
+            setLastMessage(messages[messages.length - 1].content);
+        }
         if(callStatus === CallStatus.FINISHED) router.push('/');
     }, [messages, callStatus, type, userId]);
 
     const handleCall = async () => {
         setCallStatus(CallStatus.CONNECTING);
-        await vapi.start(process.env.NEXT_PUBLIC_VAPI_WORKFLOW_ID!, {
-            variableValues: {
-                username : userName,
-                userid: userId,
-                NEXT_BASE_URL: process.env.NEXT_BASE_URL || "", // Add NEXT_BASE_URL for deployed environments
-            },
+        await vapi.start(
+            undefined,
+            undefined,
+            undefined,
+            process.env.NEXT_PUBLIC_VAPI_WORKFLOW_ID!, {
+                variableValues: {
+                    username: userName,
+                    userid: userId,
+                    //NEXT_BASE_URL: process.env.NEXT_BASE_URL || "",  Add NEXT_BASE_URL for deployed environments
+                },
         });
     }
     const handleDisconnect = async () => {
