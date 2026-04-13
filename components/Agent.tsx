@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { vapi } from "@/lib/vapi.sdk";
 import {interviewer} from "@/constants";
-import {createFeedback} from "@/lib/actions/general.action"; // keep your correct import path
+import {createFeedback} from "@/lib/actions/general.action";
+import {toast} from "sonner";
 
 enum CallStatus {
     INACTIVE = "INACTIVE",
@@ -56,16 +57,20 @@ const Agent = ({ userName, userId, type,interviewId,questions } : AgentProps) =>
     }, []);
 
     const handleGenerateFeedback = async (messages: SavedMessage[]) => {
-        console.log('Generate feedback here');
+        if (!interviewId || !userId) {
+            toast.error('Missing interview or user info. Cannot save feedback.');
+            router.push('/');
+            return;
+        }
         const {success, feedbackId: id } = await createFeedback({
-            interviewId: interviewId!,
-            userId: userId!,
+            interviewId,
+            userId,
             transcript: messages
         });
         if(success && id){
             router.push(`/interview/${interviewId}/feedback`);
         }else{
-            console.log('Error saving feedback');
+            toast.error('Failed to save feedback. Please try again.');
             router.push('/');
         }
     }
@@ -78,7 +83,7 @@ const Agent = ({ userName, userId, type,interviewId,questions } : AgentProps) =>
                 handleGenerateFeedback(messages);
             }
         }
-    }, [messages, callStatus, type, userId]);
+    }, [messages, callStatus, type, userId, router, interviewId]);
 
     const handleCall = async () => {
         setCallStatus(CallStatus.CONNECTING);
@@ -123,7 +128,7 @@ const Agent = ({ userName, userId, type,interviewId,questions } : AgentProps) =>
         <>
             <div className="call-view">
                 <div className="card-interviewer">
-                    <div className = "avatar">
+                    <div className="avatar">
                         <Image src="/ai-avatar.png" alt="vapi" width={65} height={54} className="object-cover" />
                         {isSpeaking && <span className="animate-speak" />}
                     </div>

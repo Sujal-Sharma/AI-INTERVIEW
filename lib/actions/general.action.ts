@@ -39,7 +39,9 @@ export async function getInterviewById(id: string): Promise<Interview | null>{
         .doc(id)
         .get();
 
-    return interview.data() as Interview | null;
+    if (!interview.exists) return null;
+
+    return { id: interview.id, ...interview.data() } as Interview;
 }
 
 export async function createFeedback(params: CreateFeedbackParams) {

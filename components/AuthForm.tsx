@@ -17,9 +17,9 @@ import { signIn, signUp } from "@/lib/actions/auth.action";
 
 const authFormSchema =(type:FormType) => {
     return z.object({
-        name : type === 'sign-up' ? z.string().min(3) : z.string().optional(),
+        name: type === 'sign-up' ? z.string().min(3) : z.string().optional(),
         email: z.string().email(),
-        password: z.string().min(3),
+        password: z.string().min(8),
     })
 }
 const AuthForm = ({type}: {type: FormType}) => {
@@ -95,31 +95,31 @@ const AuthForm = ({type}: {type: FormType}) => {
                 >
                     {!isSignIn && (
                         <FormField
-                            control = {form.control}
+                            control={form.control}
                             name="name"
-                            label = "Name"
+                            label="Name"
                             placeholder="Your Name"
                         />
                     )}
                     <FormField
-                        control = {form.control}
+                        control={form.control}
                         name="email"
-                        label = "Email"
+                        label="Email"
                         placeholder="Your Email Address"
                         type="email"
                     />
                     <FormField
-                        control = {form.control}
+                        control={form.control}
                         name="password"
-                        label = "Password"
+                        label="Password"
                         placeholder="Enter your password"
                         type="password"
                     />
-                    <Button className = "btn"  type="submit">{isSignIn ? 'Sign in' : 'Create an Account'}</Button>
+                    <Button className="btn" type="submit">{isSignIn ? 'Sign in' : 'Create an Account'}</Button>
                 </form>
             </Form>
 
-                <p className = "text-center">
+                <p className="text-center">
                     {isSignIn ? 'No account yet?' : 'Have an account already?'}
                     <Link href={!isSignIn ? '/sign-in' : '/sign-up'} className="font-bold text-user-primary ml-1">
                         {!isSignIn ? "Sign in": 'Sign up'}

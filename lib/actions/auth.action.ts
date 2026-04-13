@@ -29,12 +29,12 @@ export async function signUp(params: SignUpParams){
 
         if(e.code === 'auth/email-already-exists'){
             return  {
-            sucess: false,
+            success: false,
             message: 'This email already in use'
             }
         }
         return {
-            sucess: false,
+            success: false,
             message: 'Failed to create a account',
         }
     }
@@ -52,6 +52,10 @@ export async function signIn(params: SignInParams){
              }
          }
          await setSessionCookie(idToken);
+         return {
+             success: true,
+             message: 'Signed in successfully.'
+         }
      }catch(e){
          console.log(e);
          return{
