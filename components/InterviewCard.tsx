@@ -5,7 +5,7 @@ import {Button} from "@/components/ui/button";
 import Link from "next/link";
 import DisplayTechIcons from "@/components/DisplayTechIcons";
 import {getFeedbackByInterviewId} from "@/lib/actions/general.action";
-const InterviewCard = async ({id, userId,role,type,techstack,createdAt} :InterviewCardProps) => {
+const InterviewCard = async ({id, userId,role,type,techstack} :InterviewCardProps) => {
     const feedback = userId && id
     ? await getFeedbackByInterviewId({ interviewId: id, userId })
         :null;

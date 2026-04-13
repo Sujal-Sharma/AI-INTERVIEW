@@ -17,11 +17,12 @@ const Feedback = async ({ params }: RouteParams) => {
     const interview = await getInterviewById(id);
     if (!interview) redirect("/");
 
+    if (!user) redirect("/");
+
     const feedback = await getFeedbackByInterviewId({
         interviewId: id,
-        userId: user?.id!,
+        userId: user.id,
     });
-console.log(feedback);
     return (
         <section className="section-feedback">
             <div className="flex flex-row justify-center">

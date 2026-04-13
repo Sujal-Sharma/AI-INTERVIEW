@@ -2,7 +2,7 @@
 import Image from 'next/image'
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { vapi } from "@/lib/vapi.sdk";
 import {interviewer} from "@/constants";
 import {createFeedback} from "@/lib/actions/general.action";
@@ -56,7 +56,7 @@ const Agent = ({ userName, userId, type,interviewId,questions } : AgentProps) =>
         };
     }, []);
 
-    const handleGenerateFeedback = async (messages: SavedMessage[]) => {
+    const handleGenerateFeedback = useCallback(async (messages: SavedMessage[]) => {
         if (!interviewId || !userId) {
             toast.error('Missing interview or user info. Cannot save feedback.');
             router.push('/');
@@ -73,7 +73,7 @@ const Agent = ({ userName, userId, type,interviewId,questions } : AgentProps) =>
             toast.error('Failed to save feedback. Please try again.');
             router.push('/');
         }
-    }
+    }, [interviewId, userId, router]);
 
     useEffect(() => {
         if(callStatus === CallStatus.FINISHED) {
@@ -83,7 +83,7 @@ const Agent = ({ userName, userId, type,interviewId,questions } : AgentProps) =>
                 handleGenerateFeedback(messages);
             }
         }
-    }, [messages, callStatus, type, userId, router, interviewId]);
+    }, [messages, callStatus, type, router, handleGenerateFeedback]);
 
     const handleCall = async () => {
         setCallStatus(CallStatus.CONNECTING);
