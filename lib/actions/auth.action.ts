@@ -111,6 +111,21 @@ export async function isAuthenticated(){
     return !!user;
 }
 
+export async function signInWithGoogle(params: { uid: string; name: string; email: string; idToken: string }) {
+    const { uid, name, email, idToken } = params;
+    try {
+        const userRecord = await db.collection('users').doc(uid).get();
+        if (!userRecord.exists) {
+            await db.collection('users').doc(uid).set({ name, email });
+        }
+        await setSessionCookie(idToken);
+        return { success: true, message: 'Signed in with Google successfully.' };
+    } catch (e: unknown) {
+        console.log(e);
+        return { success: false, message: 'Failed to sign in with Google.' };
+    }
+}
+
 export async function logout() {
     const cookieStore = await cookies();
     cookieStore.set('session', '', {

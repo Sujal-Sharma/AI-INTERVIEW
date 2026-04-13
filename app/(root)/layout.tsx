@@ -16,7 +16,12 @@ const RootLayout = async ({ children }: { children: ReactNode }) => {
                     <Image src="/logo.svg" alt="logo" width={38} height={32} />
                     <h2 className="text-primary-100">HireAI</h2>
                 </Link>
-                <LogoutButton />
+                <div className="flex items-center gap-4">
+                    <Link href="/profile" className="text-sm text-light-400 hover:text-white transition-colors">
+                        Profile
+                    </Link>
+                    <LogoutButton />
+                </div>
             </nav>
             {children}
         </div>

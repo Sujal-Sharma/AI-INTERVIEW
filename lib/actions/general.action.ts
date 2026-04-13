@@ -131,6 +131,46 @@ Return ONLY a JSON object in this exact format, no other text:
     }
 }
 
+export async function getUserStats(userId: string) {
+    const interviews = await db
+        .collection('interviews')
+        .where('userId', '==', userId)
+        .where('finalized', '==', true)
+        .get();
+
+    const feedbacks = await db
+        .collection('feedback')
+        .where('userId', '==', userId)
+        .get();
+
+    const totalInterviews = interviews.size;
+    const completedInterviews = feedbacks.size;
+
+    const allFeedbacks = feedbacks.docs.map(doc => doc.data());
+    const averageScore = completedInterviews > 0
+        ? Math.round(allFeedbacks.reduce((sum, f) => sum + (f.totalScore ?? 0), 0) / completedInterviews)
+        : 0;
+
+    const categoryTotals: Record<string, { total: number; count: number }> = {};
+    for (const f of allFeedbacks) {
+        for (const cat of (f.categoryScores ?? [])) {
+            if (!categoryTotals[cat.name]) categoryTotals[cat.name] = { total: 0, count: 0 };
+            categoryTotals[cat.name].total += cat.score;
+            categoryTotals[cat.name].count += 1;
+        }
+    }
+
+    const categoryAverages = Object.entries(categoryTotals).map(([name, { total, count }]) => ({
+        name,
+        average: Math.round(total / count),
+    })).sort((a, b) => b.average - a.average);
+
+    const strongest = categoryAverages[0] ?? null;
+    const weakest = categoryAverages[categoryAverages.length - 1] ?? null;
+
+    return { totalInterviews, completedInterviews, averageScore, categoryAverages, strongest, weakest };
+}
+
 export async function getFeedbackByInterviewId(params: GetFeedbackByInterviewIdParams): Promise<Feedback | null>{
     const { interviewId, userId } = params;
 
