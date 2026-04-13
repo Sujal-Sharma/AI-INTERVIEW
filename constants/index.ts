@@ -303,6 +303,7 @@ export const dummyInterviews: Interview[] = [
     level: "Junior",
     questions: ["What is React?"],
     finalized: false,
+    coverImage: "/react.png",
     createdAt: "2024-03-15T10:00:00Z",
   },
   {
@@ -314,6 +315,7 @@ export const dummyInterviews: Interview[] = [
     level: "Senior",
     questions: ["What is Node.js?"],
     finalized: false,
+    coverImage: "/nodejs.png",
     createdAt: "2024-03-14T15:30:00Z",
   },
 ];

@@ -56,7 +56,7 @@ export async function signIn(params: SignInParams){
              success: true,
              message: 'Signed in successfully.'
          }
-     }catch(e){
+     }catch(e: unknown){
          console.log(e);
          return{
              success: false,
@@ -98,7 +98,7 @@ export async function getCurrentUser():Promise<User |  null>{
             ...userRecord.data(),
             id: userRecord.id,
         } as User;
-    }catch(e){
+    }catch(e: unknown){
         console.log(e);
         return null;
 
@@ -112,7 +112,6 @@ export async function isAuthenticated(){
 }
 
 export async function logout() {
-    'use server';
     const cookieStore = await cookies();
     cookieStore.set('session', '', {
         maxAge: 0,

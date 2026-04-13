@@ -38,8 +38,9 @@ export async function POST(request: Request){
         }
         await db.collection("interviews").add(interview);
         return Response.json({ success: true}, {status: 200});
-    }catch(error){
-        console.log(error);
-        return Response.json({success: false, error},{status:500});
+    }catch(error: unknown){
+        console.error(error);
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        return Response.json({success: false, error: errorMessage},{status:500});
     }
 }

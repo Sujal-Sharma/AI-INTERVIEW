@@ -73,9 +73,10 @@ const AuthForm = ({type}: {type: FormType}) => {
                 toast.success('Sign in Successfully.');
                 router.push('/')
             }
-        }catch(error){
+        }catch(error: unknown){
             console.log(error);
-            toast.error(`There was an error: ${error}`);
+            const message = error instanceof Error ? error.message : String(error);
+            toast.error(`There was an error: ${message}`);
          }
     }
 
