@@ -131,6 +131,60 @@ Return ONLY a JSON object in this exact format, no other text:
     }
 }
 
+export async function generateStudyPlan(params: { weakAreas: string[]; role: string }) {
+    const { weakAreas, role } = params;
+    try {
+        const completion = await groq.chat.completions.create({
+            model: "llama-3.3-70b-versatile",
+            messages: [
+                {
+                    role: "system",
+                    content: "You are a career coach. Generate concise, actionable study plans. Always respond with valid JSON only.",
+                },
+                {
+                    role: "user",
+                    content: `Generate a 7-day study plan for a ${role} candidate who needs to improve in: ${weakAreas.join(", ")}.
+
+Return ONLY a JSON object:
+{
+  "plan": [
+    { "day": 1, "focus": "<area>", "tasks": ["<task1>", "<task2>", "<task3>"] },
+    ...7 days total
+  ],
+  "resources": ["<resource1>", "<resource2>", "<resource3>"]
+}`
+                }
+            ],
+            response_format: { type: "json_object" },
+            temperature: 0.7,
+        });
+
+        const raw = completion.choices[0]?.message?.content ?? "{}";
+        return JSON.parse(raw);
+    } catch (error: unknown) {
+        console.error("Study plan error:", error);
+        return null;
+    }
+}
+
+export async function getFeedbackHistory(userId: string) {
+    const feedbacks = await db
+        .collection('feedback')
+        .where('userId', '==', userId)
+        .orderBy('createdAt', 'asc')
+        .get();
+
+    return feedbacks.docs.map((doc) => {
+        const data = doc.data();
+        return {
+            id: doc.id,
+            totalScore: data.totalScore as number,
+            createdAt: data.createdAt as string,
+            interviewId: data.interviewId as string,
+        };
+    });
+}
+
 export async function getUserStats(userId: string) {
     const interviews = await db
         .collection('interviews')

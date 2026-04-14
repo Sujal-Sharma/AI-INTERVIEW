@@ -1,7 +1,8 @@
 import { getCurrentUser } from "@/lib/actions/auth.action";
-import { getUserStats } from "@/lib/actions/general.action";
+import { getUserStats, getFeedbackHistory } from "@/lib/actions/general.action";
 import { redirect } from "next/navigation";
 import Image from "next/image";
+import ScoreChart from "@/components/ScoreChart";
 
 const StatCard = ({ label, value, sub }: { label: string; value: string | number; sub?: string }) => (
     <div className="flex flex-col gap-1 bg-dark-200 rounded-2xl p-6 flex-1 min-w-[140px]">
@@ -15,12 +16,16 @@ const ProfilePage = async () => {
     const user = await getCurrentUser();
     if (!user) redirect('/sign-in');
 
-    const stats = await getUserStats(user.id);
+    const [stats, history] = await Promise.all([
+        getUserStats(user.id),
+        getFeedbackHistory(user.id),
+    ]);
 
     return (
         <div className="flex flex-col gap-8">
+            {/* User info */}
             <div className="flex flex-row items-center gap-6">
-                <div className="size-20 rounded-full bg-dark-200 flex items-center justify-center">
+                <div className="size-20 rounded-full bg-dark-200 flex items-center justify-center overflow-hidden">
                     <Image src="/user-avatar.png" alt="avatar" width={80} height={80} className="rounded-full object-cover" />
                 </div>
                 <div>
@@ -29,12 +34,16 @@ const ProfilePage = async () => {
                 </div>
             </div>
 
+            {/* Stats */}
             <section className="flex flex-col gap-4">
                 <h3>Your Stats</h3>
                 <div className="flex flex-row flex-wrap gap-4">
                     <StatCard label="Total Interviews" value={stats.totalInterviews} />
                     <StatCard label="Completed" value={stats.completedInterviews} />
-                    <StatCard label="Average Score" value={stats.averageScore > 0 ? `${stats.averageScore}/100` : '---'} />
+                    <StatCard
+                        label="Average Score"
+                        value={stats.averageScore > 0 ? `${stats.averageScore}/100` : '---'}
+                    />
                     {stats.strongest && (
                         <StatCard
                             label="Strongest Area"
@@ -52,6 +61,17 @@ const ProfilePage = async () => {
                 </div>
             </section>
 
+            {/* Progress chart */}
+            {history.length > 0 && (
+                <section className="flex flex-col gap-4">
+                    <h3>Score Progress</h3>
+                    <div className="bg-dark-200 rounded-2xl p-6">
+                        <ScoreChart data={history} />
+                    </div>
+                </section>
+            )}
+
+            {/* Category breakdown */}
             {stats.categoryAverages.length > 0 && (
                 <section className="flex flex-col gap-4">
                     <h3>Performance by Category</h3>
@@ -62,7 +82,7 @@ const ProfilePage = async () => {
                                     <span>{cat.name}</span>
                                     <span className="text-light-400">{cat.average}/100</span>
                                 </div>
-                                <div className="h-2 w-full rounded-full bg-dark-200">
+                                <div className="h-2 w-full rounded-full bg-dark-300">
                                     <div
                                         className="h-2 rounded-full bg-primary-200 transition-all"
                                         style={{ width: `${cat.average}%` }}

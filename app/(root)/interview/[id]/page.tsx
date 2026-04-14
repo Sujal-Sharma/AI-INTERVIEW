@@ -1,6 +1,7 @@
 import React from 'react'
 import Image from "next/image";
 import Agent from "@/components/Agent";
+import InterviewTimer from "@/components/InterviewTimer";
 
 import {getInterviewById} from "@/lib/actions/general.action";
 import {redirect} from "next/navigation";
@@ -31,9 +32,12 @@ const Page = async ({ params} : RouteParams) => {
 
                     <DisplayTechIcons techStack={interview.techstack} />
                 </div>
-                <p className="bg-dark-200 px-4 py-2 rounded-lg h-fit capitalize">
-                    {interview.type}
-                </p>
+                <div className="flex items-center gap-4">
+                    <p className="bg-dark-200 px-4 py-2 rounded-lg h-fit capitalize">
+                        {interview.type}
+                    </p>
+                    <InterviewTimer durationMinutes={interview.questions.length * 3} />
+                </div>
             </div>
             <Agent
             userName={user?.name || ''}
