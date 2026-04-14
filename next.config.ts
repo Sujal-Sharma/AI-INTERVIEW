@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-    serverExternalPackages: ["unpdf"],
+    serverExternalPackages: ["unpdf", "pdf-parse"],
 };
 
 export default nextConfig;

@@ -2,7 +2,6 @@ import { NextRequest } from "next/server";
 import Groq from "groq-sdk";
 import { db } from "@/firebase/admin";
 import { getRandomInterviewCover } from "@/lib/utils";
-import { extractText } from "unpdf";
 
 export const maxDuration = 60;
 
@@ -21,8 +20,13 @@ export async function POST(req: NextRequest) {
         }
 
         const arrayBuffer = await file.arrayBuffer();
-        const { text: pages } = await extractText(new Uint8Array(arrayBuffer), { mergePages: true });
-        const resumeText = Array.isArray(pages) ? pages.join(" ").trim() : String(pages).trim();
+        const buffer = Buffer.from(arrayBuffer);
+
+        // Use pdf-parse lib directly (avoids test-file read on serverless cold start)
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const pdfParse = require("pdf-parse/lib/pdf-parse.js");
+        const pdfData = await pdfParse(buffer);
+        const resumeText = pdfData.text?.trim() ?? "";
 
         if (!resumeText || resumeText.length < 50) {
             return Response.json({ success: false, error: "Could not extract text from PDF. Make sure it is not a scanned image." }, { status: 400 });
