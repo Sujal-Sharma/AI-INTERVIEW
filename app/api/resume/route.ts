@@ -2,7 +2,8 @@ import { NextRequest } from "next/server";
 import Groq from "groq-sdk";
 import { db } from "@/firebase/admin";
 import { getRandomInterviewCover } from "@/lib/utils";
-import pdf from "pdf-parse/lib/pdf-parse";
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const pdf = require("pdf-parse");
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
