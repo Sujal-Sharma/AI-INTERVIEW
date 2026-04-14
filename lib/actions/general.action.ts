@@ -7,32 +7,37 @@ import {z} from "zod";
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 export async function getInterviewsByUserId(userId: string): Promise<Interview[] | null>{
-    const interviews = await db
-        .collection('interviews')
-        .where('userId', '==', userId)
-        .orderBy('createdAt', 'desc')
-        .get();
+    try {
+        const interviews = await db
+            .collection('interviews')
+            .where('userId', '==', userId)
+            .get();
 
-    return interviews.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data()
-    })) as Interview[];
+        return interviews.docs
+            .map((doc) => ({ id: doc.id, ...doc.data() }) as Interview)
+            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    } catch {
+        return [];
+    }
 }
 
 export async function getLatestInterviews(params: GetLatestInterviewsParams): Promise<Interview[] | null>{
     const { userId, limit = 20 } = params;
-    const interviews = await db
-        .collection('interviews')
-        .orderBy('createdAt', 'desc')
-        .where('finalized', '==', true)
-        .where('userId', '!=', userId)
-        .limit(limit)
-        .get();
+    try {
+        const interviews = await db
+            .collection('interviews')
+            .where('finalized', '==', true)
+            .limit(50)
+            .get();
 
-    return interviews.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data()
-    })) as Interview[];
+        return interviews.docs
+            .map((doc) => ({ id: doc.id, ...doc.data() }) as Interview)
+            .filter((i) => i.userId !== userId)
+            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+            .slice(0, limit);
+    } catch {
+        return [];
+    }
 }
 
 export async function getInterviewById(id: string): Promise<Interview | null>{
@@ -168,28 +173,32 @@ Return ONLY a JSON object:
 }
 
 export async function getFeedbackHistory(userId: string) {
-    const feedbacks = await db
-        .collection('feedback')
-        .where('userId', '==', userId)
-        .orderBy('createdAt', 'asc')
-        .get();
+    try {
+        const feedbacks = await db
+            .collection('feedback')
+            .where('userId', '==', userId)
+            .get();
 
-    return feedbacks.docs.map((doc) => {
-        const data = doc.data();
-        return {
-            id: doc.id,
-            totalScore: data.totalScore as number,
-            createdAt: data.createdAt as string,
-            interviewId: data.interviewId as string,
-        };
-    });
+        return feedbacks.docs
+            .map((doc) => {
+                const data = doc.data();
+                return {
+                    id: doc.id,
+                    totalScore: data.totalScore as number,
+                    createdAt: data.createdAt as string,
+                    interviewId: data.interviewId as string,
+                };
+            })
+            .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+    } catch {
+        return [];
+    }
 }
 
 export async function getUserStats(userId: string) {
     const interviews = await db
         .collection('interviews')
         .where('userId', '==', userId)
-        .where('finalized', '==', true)
         .get();
 
     const feedbacks = await db

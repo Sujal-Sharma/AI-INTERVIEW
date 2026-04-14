@@ -12,12 +12,15 @@ const InterviewFilters = ({ basePath = "/" }: { basePath?: string }) => {
     const type = searchParams.get("type") ?? "All";
 
     const update = useCallback((key: string, value: string) => {
-        const params = new URLSearchParams(searchParams.toString());
+        // Parse basePath to extract any existing params (e.g. tab=completed)
+        const [baseUrl, baseQuery] = basePath.split("?");
+        const params = new URLSearchParams(baseQuery ?? "");
+        // Carry over filter params
         if (value === "All") params.delete(key);
         else params.set(key, value);
         const qs = params.toString();
-        router.push(qs ? `${basePath}?${qs}` : basePath);
-    }, [router, searchParams, basePath]);
+        router.push(qs ? `${baseUrl}?${qs}` : baseUrl);
+    }, [router, basePath]);
 
     return (
         <div className="flex flex-wrap gap-4 items-center">
