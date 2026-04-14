@@ -24,6 +24,7 @@ const Agent = ({ userName, userId, type,interviewId,questions } : AgentProps) =>
     const [isSpeaking, setIsSpeaking] = useState(false);
     const [callStatus, setCallStatus] = useState<CallStatus>(CallStatus.INACTIVE);
     const [messages, setMessages] = useState<SavedMessage[]>([]);
+    const [vapiError, setVapiError] = useState<string | null>(null);
 
 
     useEffect(() => {
@@ -37,7 +38,20 @@ const Agent = ({ userName, userId, type,interviewId,questions } : AgentProps) =>
         };
         const onSpeechStart = () => setIsSpeaking(true);
         const onSpeechEnd = () => setIsSpeaking(false);
-        const onError = (error: Error) => console.log('Error', error);
+        const onError = (error: Error) => {
+            console.log('Vapi error', error);
+            const msg = error?.message?.toLowerCase() ?? "";
+            if (msg.includes("credit") || msg.includes("limit") || msg.includes("quota") || msg.includes("billing") || msg.includes("insufficient")) {
+                setVapiError("Voice interviews are temporarily unavailable — service credits have been exhausted. Please try again later.");
+            } else if (msg.includes("permission") || msg.includes("microphone") || msg.includes("media")) {
+                setVapiError("Microphone access was denied. Please allow microphone permissions and try again.");
+            } else if (msg.includes("network") || msg.includes("connection") || msg.includes("websocket")) {
+                setVapiError("Connection lost. Please check your internet and try again.");
+            } else {
+                setVapiError("Something went wrong with the voice call. Please try again.");
+            }
+            setCallStatus(CallStatus.INACTIVE);
+        };
 
         vapi.on('call-start', onCallStart);
         vapi.on('call-end', onCallEnd);
@@ -87,33 +101,45 @@ const Agent = ({ userName, userId, type,interviewId,questions } : AgentProps) =>
 
     const handleCall = async () => {
         setCallStatus(CallStatus.CONNECTING);
-
-        if (type === "generate") {
-            await vapi.start(
-                undefined,
-                undefined,
-                undefined,
-                process.env.NEXT_PUBLIC_VAPI_WORKFLOW_ID!,
-                {
-                    variableValues: {
-                        username: userName,
-                        userid: userId,
-                    },
+        setVapiError(null);
+        try {
+            if (type === "generate") {
+                await vapi.start(
+                    undefined,
+                    undefined,
+                    undefined,
+                    process.env.NEXT_PUBLIC_VAPI_WORKFLOW_ID!,
+                    {
+                        variableValues: {
+                            username: userName,
+                            userid: userId,
+                        },
+                    }
+                );
+            } else {
+                let formattedQuestions = "";
+                if (questions) {
+                    formattedQuestions = questions
+                        .map((question) => `- ${question}`)
+                        .join("\n");
                 }
-            );
-        } else {
-            let formattedQuestions = "";
-            if (questions) {
-                formattedQuestions = questions
-                    .map((question) => `- ${question}`)
-                    .join("\n");
+                await vapi.start(interviewer, {
+                    variableValues: {
+                        questions: formattedQuestions,
+                    },
+                });
             }
-
-            await vapi.start(interviewer, {
-                variableValues: {
-                    questions: formattedQuestions,
-                },
-            });
+        } catch (err: unknown) {
+            console.log('Vapi start error', err);
+            const msg = err instanceof Error ? err.message.toLowerCase() : "";
+            if (msg.includes("credit") || msg.includes("limit") || msg.includes("quota") || msg.includes("billing") || msg.includes("insufficient")) {
+                setVapiError("Voice interviews are temporarily unavailable — service credits have been exhausted. Please try again later.");
+            } else if (msg.includes("permission") || msg.includes("microphone") || msg.includes("media")) {
+                setVapiError("Microphone access was denied. Please allow microphone permissions and try again.");
+            } else {
+                setVapiError("Failed to start the voice call. Please check your connection and try again.");
+            }
+            setCallStatus(CallStatus.INACTIVE);
         }
     };
     const handleDisconnect = async () => {
@@ -150,9 +176,15 @@ const Agent = ({ userName, userId, type,interviewId,questions } : AgentProps) =>
                     </div>
                 </div>
             )}
+            {vapiError && (
+                <div className="w-full max-w-md mx-auto flex items-start gap-3 bg-destructive-100/10 border border-destructive-100/30 rounded-2xl px-5 py-4">
+                    <span className="text-destructive-100 text-lg shrink-0">⚠</span>
+                    <p className="text-sm text-destructive-100 leading-relaxed">{vapiError}</p>
+                </div>
+            )}
             <div className="w-full flex justify-center">
                 {callStatus !== CallStatus.ACTIVE ? (
-                    <button className="relative btn-call" onClick={handleCall}>
+                    <button className="relative btn-call" onClick={handleCall} disabled={callStatus === CallStatus.CONNECTING}>
                         <span
                             className={cn(
                                 "absolute animate-ping rounded-full opacity-75",
