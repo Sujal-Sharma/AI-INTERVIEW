@@ -14,47 +14,54 @@ export async function POST(req: NextRequest) {
             return Response.json({ success: false, error: "Resume text is required" }, { status: 400 });
         }
 
+        const systemPrompt = `You are a senior technical recruiter and resume coach who has reviewed 10,000+ resumes at FAANG companies. You give honest, specific, actionable feedback. You do NOT give generic advice. Every suggestion references the actual resume content. You are direct and point out real problems.`;
+
+        const userPrompt = `Review this resume${targetRole ? ` for a ${targetRole} role` : ""} with extreme detail. Reference specific lines and sections from the resume.
+
+RESUME:
+${resumeText.slice(0, 2800)}
+
+Return ONLY this JSON:
+{
+  "overallRating": <1-10, strict — 6 is average, 8+ is genuinely strong>,
+  "hirabilityVerdict": "<one line: e.g. 'Would pass initial screen at mid-size companies, unlikely at FAANG without improvements'>",
+  "summary": "<3 sentences: what this person is, what's strong, what's the single biggest problem>",
+  "sectionAnalysis": [
+    {
+      "section": "<e.g. Summary, Experience, Skills, Projects, Education>",
+      "score": <1-10>,
+      "currentState": "<what the section currently does well or poorly, citing actual content>",
+      "problems": ["<specific problem with evidence from actual text>"],
+      "fixes": ["<specific actionable fix>"]
+    }
+  ],
+  "bulletRewrites": [
+    {
+      "original": "<copy exact bullet from resume>",
+      "improved": "<rewritten with: strong action verb + what you did + tool/tech used + measurable outcome>",
+      "improvement": "<what changed and why>"
+    }
+  ],
+  "missingElements": ["<something important not in the resume at all, e.g. 'No GitHub link', 'No quantified metrics in project outcomes'>"],
+  "skillGaps": ["<skill missing for ${targetRole || "the inferred target role"} based on what's shown>"],
+  "keywordsToAdd": ["<specific keyword to add, with context of where>"],
+  "formattingIssues": ["<specific formatting problem>"],
+  "topStrengths": ["<genuine strength with specific evidence from resume>"],
+  "quickWins": ["<change that takes <5 min and meaningfully improves the resume>"],
+  "powerVerbAlternatives": [
+    { "weak": "<weak verb used in resume>", "strong": ["<better verb 1>", "<better verb 2>"] }
+  ]
+}`;
+
         const completion = await groq.chat.completions.create({
             model: "llama-3.3-70b-versatile",
             messages: [
-                {
-                    role: "system",
-                    content: "You are an expert resume coach and career advisor. Always respond with valid JSON only.",
-                },
-                {
-                    role: "user",
-                    content: `Analyze this resume${targetRole ? ` for a ${targetRole} position` : ""} and provide detailed improvement suggestions.
-
-Resume:
-${resumeText.slice(0, 2500)}
-
-Return ONLY a JSON object:
-{
-  "overallRating": <number 1-10>,
-  "summary": "<2-3 sentence assessment>",
-  "improvements": [
-    {
-      "section": "<section name>",
-      "issue": "<what is wrong>",
-      "suggestion": "<specific fix>",
-      "priority": "high|medium|low"
-    }
-  ],
-  "bulletPointSuggestions": [
-    {
-      "original": "<original bullet or phrase from resume>",
-      "improved": "<improved version with action verb and metrics>"
-    }
-  ],
-  "skillsToAdd": ["<skill 1>", "<skill 2>", "<skill 3>"],
-  "formattingTips": ["<tip 1>", "<tip 2>"],
-  "powerWords": ["<word 1>", "<word 2>", "<word 3>", "<word 4>", "<word 5>"]
-}`,
-                }
+                { role: "system", content: systemPrompt },
+                { role: "user", content: userPrompt }
             ],
             response_format: { type: "json_object" },
-            temperature: 0.6,
-            max_tokens: 1500,
+            temperature: 0.4,
+            max_tokens: 2500,
         });
 
         const raw = completion.choices[0]?.message?.content ?? "{}";

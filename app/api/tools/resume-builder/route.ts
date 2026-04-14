@@ -8,59 +8,163 @@ const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 export async function POST(req: NextRequest) {
     try {
         const body = await req.json();
-        const { resumeText, jobDescription, mode, name, email } = body;
+        const { resumeText, jobDescription, mode, name, email, phone, linkedin, github } = body;
 
         if (!jobDescription) {
             return Response.json({ success: false, error: "Job description is required" }, { status: 400 });
         }
-
         if (mode === "optimize" && (!resumeText || resumeText.length < 50)) {
             return Response.json({ success: false, error: "Resume text is required for optimization mode." }, { status: 400 });
         }
 
-        const userPrompt = mode === "optimize"
-            ? `You are an expert ATS resume writer. Optimize the resume below for the given job description.
+        const systemPrompt = `You are a world-class resume writer who has helped candidates land roles at Google, Amazon, Microsoft, and top startups. You write resumes that are:
+1. ATS-optimized: correct keywords, clean structure, standard section headers
+2. Human-compelling: strong action verbs, quantified outcomes, clear impact
+3. Concise: every word earns its place
+4. Industry-standard: follows modern single-page resume conventions
 
-Resume:
-${resumeText.slice(0, 2000)}
+Rules:
+- Every bullet point: [Action Verb] + [What you did] + [Tool/Method] + [Measurable Outcome]
+- No "responsible for", "helped with", "worked on" — only strong action verbs
+- Numbers everywhere: %, $, ms, users, team size, time saved
+- Skills section must mirror exact keywords from the JD
+- Summary must be 2-3 tight sentences, no fluff`;
 
-Job Description:
-${jobDescription.slice(0, 1000)}
+        const optimizePrompt = `Optimize this resume for the job description below. Extract real information from the resume — do not invent facts.
 
-Return ONLY a JSON object:
+EXISTING RESUME:
+${resumeText.slice(0, 2200)}
+
+JOB DESCRIPTION:
+${jobDescription.slice(0, 1200)}
+
+Return ONLY this JSON (all fields required):
 {
-  "summary": "<tailored professional summary 3 sentences, ATS-optimized>",
-  "keySkills": ["<skill1>", "<skill2>", "<skill3>", "<skill4>", "<skill5>", "<skill6>", "<skill7>", "<skill8>"],
-  "tailoredBullets": [
-    { "section": "<Experience/Project name from resume>", "bullets": ["<strong action verb + metric bullet>", "<bullet 2>", "<bullet 3>"] }
+  "contactInfo": {
+    "name": "<from resume>",
+    "email": "<from resume>",
+    "phone": "<from resume if present>",
+    "linkedin": "<from resume if present>",
+    "github": "<from resume if present>",
+    "location": "<from resume if present>"
+  },
+  "summary": "<2-3 sentence ATS-optimized summary tailored to JD, using keywords from JD>",
+  "skills": [
+    { "category": "<e.g. Languages, Frameworks, Cloud, Tools>", "items": ["<skill>", "<skill>"] }
   ],
-  "missingKeywords": ["<JD keyword added to resume>", "<keyword 2>", "<keyword 3>"],
-  "fullResumeText": "<complete ATS-optimized resume in structured plain text. Include sections: CONTACT INFO, PROFESSIONAL SUMMARY, TECHNICAL SKILLS, WORK EXPERIENCE (with role, company, dates, 3-4 strong bullet points each), EDUCATION, PROJECTS. Make it detailed enough to fill a full page.>"
-}`
-            : `You are an expert ATS resume writer. Generate a complete professional resume for this job description.
+  "experience": [
+    {
+      "title": "<job title>",
+      "company": "<company>",
+      "location": "<location>",
+      "duration": "<e.g. Jun 2023 – Present>",
+      "bullets": [
+        "<Action Verb> <what> using <tool/tech>, resulting in <metric outcome>",
+        "<Action Verb> <what> using <tool/tech>, achieving <metric outcome>"
+      ]
+    }
+  ],
+  "projects": [
+    {
+      "name": "<project name>",
+      "link": "<link if present>",
+      "tech": "<comma-separated tech stack>",
+      "bullets": [
+        "<Action Verb> <what> — <metric outcome>",
+        "<Action Verb> <what> — <metric outcome>"
+      ]
+    }
+  ],
+  "education": [
+    {
+      "degree": "<degree and field>",
+      "institution": "<university>",
+      "duration": "<years>",
+      "gpa": "<if present>",
+      "details": "<relevant coursework or achievements if any>"
+    }
+  ],
+  "certifications": ["<certification name>"],
+  "atsKeywordsAdded": ["<JD keyword that was incorporated>"],
+  "changesExplanation": "<2-3 sentences on what was changed and why>"
+}`;
 
-${name ? `Candidate Name: ${name}` : "Candidate Name: [Your Name]"}
-${email ? `Email: ${email}` : "Email: [your@email.com]"}
+        const generatePrompt = `Generate a complete, professional resume for this job description.
 
-Job Description:
-${jobDescription.slice(0, 1000)}
+CANDIDATE DETAILS:
+Name: ${name || "[Your Name]"}
+Email: ${email || "[your@email.com]"}
+Phone: ${phone || "[+1 (XXX) XXX-XXXX]"}
+LinkedIn: ${linkedin || "[linkedin.com/in/yourname]"}
+GitHub: ${github || "[github.com/yourname]"}
 
-Return ONLY a JSON object:
+JOB DESCRIPTION:
+${jobDescription.slice(0, 1200)}
+
+Return ONLY this JSON (all fields required, make content realistic and strong):
 {
-  "summary": "<compelling professional summary 3 sentences tailored to the JD>",
-  "keySkills": ["<skill1>", "<skill2>", "<skill3>", "<skill4>", "<skill5>", "<skill6>", "<skill7>", "<skill8>"],
-  "fullResumeText": "<complete ATS-optimized resume in structured plain text. Include sections: CONTACT INFO (with name, email, LinkedIn placeholder, GitHub placeholder), PROFESSIONAL SUMMARY (3 sentences), TECHNICAL SKILLS (categorized), WORK EXPERIENCE (2-3 relevant positions with strong bullets using action verbs and metrics), EDUCATION, PROJECTS (2-3 relevant projects). Each section should be detailed and keyword-rich. Format cleanly so it fills a full page.>"
+  "contactInfo": {
+    "name": "${name || "[Your Name]"}",
+    "email": "${email || "[your@email.com]"}",
+    "phone": "${phone || "[+1 (XXX) XXX-XXXX]"}",
+    "linkedin": "${linkedin || "[linkedin.com/in/yourname]"}",
+    "github": "${github || "[github.com/yourname]"}",
+    "location": "[City, Country]"
+  },
+  "summary": "<2-3 sentence compelling professional summary using JD keywords>",
+  "skills": [
+    { "category": "<Languages>", "items": ["<skill>"] },
+    { "category": "<Frameworks & Libraries>", "items": ["<skill>"] },
+    { "category": "<Cloud & DevOps>", "items": ["<skill>"] },
+    { "category": "<Tools & Platforms>", "items": ["<skill>"] }
+  ],
+  "experience": [
+    {
+      "title": "<relevant job title>",
+      "company": "<Company Name>",
+      "location": "<City, Country>",
+      "duration": "<Month Year – Month Year>",
+      "bullets": [
+        "<strong action verb + what + tool + metric outcome>",
+        "<strong action verb + what + tool + metric outcome>",
+        "<strong action verb + what + tool + metric outcome>"
+      ]
+    }
+  ],
+  "projects": [
+    {
+      "name": "<Project Name>",
+      "link": "github.com/yourname/project",
+      "tech": "<Tech Stack>",
+      "bullets": [
+        "<Engineered/Built/Designed> <what> — <metric outcome>",
+        "<Engineered/Built/Designed> <what> — <metric outcome>"
+      ]
+    }
+  ],
+  "education": [
+    {
+      "degree": "<Degree> in <Field>",
+      "institution": "<University>",
+      "duration": "<Year – Year>",
+      "gpa": "",
+      "details": ""
+    }
+  ],
+  "certifications": [],
+  "atsKeywordsAdded": ["<keyword from JD incorporated>"],
+  "changesExplanation": "Generated a complete resume tailored to the job description with ATS-optimized keywords and quantified bullet points."
 }`;
 
         const completion = await groq.chat.completions.create({
             model: "llama-3.3-70b-versatile",
             messages: [
-                { role: "system", content: "You are an expert ATS resume writer. Always respond with valid JSON only. Never truncate the fullResumeText field — it must be complete." },
-                { role: "user", content: userPrompt }
+                { role: "system", content: systemPrompt },
+                { role: "user", content: mode === "optimize" ? optimizePrompt : generatePrompt }
             ],
             response_format: { type: "json_object" },
-            temperature: 0.5,
-            max_tokens: 2500,
+            temperature: 0.4,
+            max_tokens: 3000,
         });
 
         const raw = completion.choices[0]?.message?.content ?? "{}";
