@@ -2,8 +2,7 @@ import { NextRequest } from "next/server";
 import Groq from "groq-sdk";
 import { db } from "@/firebase/admin";
 import { getRandomInterviewCover } from "@/lib/utils";
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const pdf = require("pdf-parse");
+import { extractText } from "unpdf";
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
@@ -19,11 +18,10 @@ export async function POST(req: NextRequest) {
             return Response.json({ success: false, error: "Resume and userId are required" }, { status: 400 });
         }
 
-        // Parse PDF
+        // Parse PDF using unpdf (works in edge/serverless)
         const arrayBuffer = await file.arrayBuffer();
-        const buffer = Buffer.from(arrayBuffer);
-        const pdfData = await pdf(buffer);
-        const resumeText = pdfData.text?.trim();
+        const { text: pages } = await extractText(new Uint8Array(arrayBuffer), { mergePages: true });
+        const resumeText = Array.isArray(pages) ? pages.join(" ").trim() : String(pages).trim();
 
         if (!resumeText || resumeText.length < 50) {
             return Response.json({ success: false, error: "Could not extract text from PDF. Make sure it is not a scanned image." }, { status: 400 });
