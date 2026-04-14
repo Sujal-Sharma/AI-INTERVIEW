@@ -8,13 +8,15 @@ interface Message {
     content: string;
 }
 
+type Step = "upload" | "extracting" | "ready";
+
 export default function ResumeQAPage() {
     const [file, setFile] = useState<File | null>(null);
-    const [resumeContext, setResumeContext] = useState("");
+    const [resumeText, setResumeText] = useState("");
     const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState("");
     const [loading, setLoading] = useState(false);
-    const [uploading, setUploading] = useState(false);
+    const [step, setStep] = useState<Step>("upload");
     const [dragging, setDragging] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -26,47 +28,38 @@ export default function ResumeQAPage() {
         if (f.type !== "application/pdf") { toast.error("Please upload a PDF file."); return; }
         if (f.size > 5 * 1024 * 1024) { toast.error("File must be under 5MB."); return; }
         setFile(f);
-        setResumeContext("");
+        setResumeText("");
         setMessages([]);
+        setStep("extracting");
 
-        // Pre-upload the resume to extract text
-        setUploading(true);
         try {
             const formData = new FormData();
             formData.append("resume", f);
-            formData.append("question", "Summarize this resume briefly.");
-            const res = await fetch("/api/tools/resume-qa", { method: "POST", body: formData });
+            const res = await fetch("/api/tools/extract", { method: "POST", body: formData });
             const data = await res.json();
-            if (data.success) {
-                setResumeContext(data.resumeContext);
-                setMessages([{ role: "assistant", content: "Resume uploaded successfully! Ask me anything about your background, skills, or experience." }]);
-            } else {
-                toast.error(data.error || "Failed to process resume.");
-                setFile(null);
-            }
+            if (!data.success) { toast.error(data.error || "Failed to read PDF."); setStep("upload"); return; }
+            setResumeText(data.text);
+            setStep("ready");
+            setMessages([{ role: "assistant", content: "Resume uploaded! Ask me anything about your background, skills, or experience." }]);
         } catch {
-            toast.error("Failed to process resume.");
-            setFile(null);
-        } finally {
-            setUploading(false);
+            toast.error("Failed to process PDF.");
+            setStep("upload");
         }
     };
 
     const handleSend = async () => {
-        if (!input.trim()) return;
-        if (!resumeContext) { toast.error("Please upload your resume first."); return; }
-
+        if (!input.trim() || !resumeText) return;
         const userMessage = input.trim();
         setInput("");
         setMessages(prev => [...prev, { role: "user", content: userMessage }]);
         setLoading(true);
 
         try {
-            const formData = new FormData();
-            formData.append("question", userMessage);
-            formData.append("resumeContext", resumeContext);
-
-            const res = await fetch("/api/tools/resume-qa", { method: "POST", body: formData });
+            const res = await fetch("/api/tools/resume-qa", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ resumeText, question: userMessage }),
+            });
             const data = await res.json();
             if (!data.success) { toast.error(data.error || "Failed to get answer."); return; }
             setMessages(prev => [...prev, { role: "assistant", content: data.answer }]);
@@ -91,7 +84,7 @@ export default function ResumeQAPage() {
                 <p className="text-light-400 mt-1">Upload your resume and ask anything — get AI answers based on your actual experience and skills.</p>
             </div>
 
-            {!file && (
+            {step === "upload" && (
                 <div
                     onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
                     onDragLeave={() => setDragging(false)}
@@ -109,36 +102,31 @@ export default function ResumeQAPage() {
                 </div>
             )}
 
-            {uploading && (
+            {step === "extracting" && (
                 <div className="flex items-center justify-center gap-3 bg-dark-200 rounded-2xl p-8">
                     <span className="size-5 border-2 border-primary-200/30 border-t-primary-200 rounded-full animate-spin" />
-                    <p className="text-light-400">Processing your resume...</p>
+                    <p className="text-light-400">Reading your resume...</p>
                 </div>
             )}
 
-            {file && resumeContext && (
+            {step === "ready" && (
                 <>
-                    {/* File indicator */}
                     <div className="flex items-center gap-3 bg-dark-200 rounded-xl px-4 py-3">
                         <span className="text-success-100">✓</span>
-                        <p className="text-sm text-white flex-1">{file.name}</p>
+                        <p className="text-sm text-white flex-1">{file?.name}</p>
                         <button
-                            onClick={() => { setFile(null); setResumeContext(""); setMessages([]); }}
+                            onClick={() => { setFile(null); setResumeText(""); setMessages([]); setStep("upload"); }}
                             className="text-xs text-light-400 hover:text-white transition-colors"
                         >
                             Change
                         </button>
                     </div>
 
-                    {/* Chat messages */}
                     <div className="flex flex-col gap-3 bg-dark-200 rounded-2xl p-4 min-h-[300px] max-h-[450px] overflow-y-auto">
                         {messages.map((msg, i) => (
                             <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
                                 <div className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm
-                                    ${msg.role === "user"
-                                        ? "bg-primary-200 text-dark-100"
-                                        : "bg-dark-300 text-light-100"
-                                    }`}>
+                                    ${msg.role === "user" ? "bg-primary-200 text-dark-100" : "bg-dark-300 text-light-100"}`}>
                                     {msg.content}
                                 </div>
                             </div>
@@ -157,13 +145,12 @@ export default function ResumeQAPage() {
                         <div ref={messagesEndRef} />
                     </div>
 
-                    {/* Suggestions */}
                     {messages.length <= 1 && (
                         <div className="flex flex-wrap gap-2">
                             {suggested.map((s, i) => (
                                 <button
                                     key={i}
-                                    onClick={() => { setInput(s); }}
+                                    onClick={() => setInput(s)}
                                     className="px-3 py-1.5 bg-dark-200 text-light-400 rounded-full text-xs hover:text-white hover:bg-dark-300 transition-colors border border-light-600/20"
                                 >
                                     {s}
@@ -172,7 +159,6 @@ export default function ResumeQAPage() {
                         </div>
                     )}
 
-                    {/* Input */}
                     <div className="flex gap-3">
                         <input
                             type="text"

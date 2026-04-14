@@ -26,37 +26,55 @@ interface ImproveResult {
 }
 
 const priorityColor = { high: "text-destructive-100", medium: "text-yellow-400", low: "text-success-100" };
+type Step = "upload" | "extracting" | "ready" | "analyzing" | "done";
 
 export default function ImproveResumePage() {
     const [file, setFile] = useState<File | null>(null);
+    const [resumeText, setResumeText] = useState("");
     const [targetRole, setTargetRole] = useState("");
-    const [loading, setLoading] = useState(false);
+    const [step, setStep] = useState<Step>("upload");
     const [result, setResult] = useState<ImproveResult | null>(null);
     const [dragging, setDragging] = useState(false);
 
-    const handleFile = (f: File) => {
+    const handleFile = async (f: File) => {
         if (f.type !== "application/pdf") { toast.error("Please upload a PDF file."); return; }
         if (f.size > 5 * 1024 * 1024) { toast.error("File must be under 5MB."); return; }
         setFile(f);
+        setResumeText("");
         setResult(null);
+        setStep("extracting");
+
+        try {
+            const formData = new FormData();
+            formData.append("resume", f);
+            const res = await fetch("/api/tools/extract", { method: "POST", body: formData });
+            const data = await res.json();
+            if (!data.success) { toast.error(data.error || "Failed to read PDF."); setStep("upload"); return; }
+            setResumeText(data.text);
+            setStep("ready");
+            toast.success("Resume loaded! Now analyse it.");
+        } catch {
+            toast.error("Failed to process PDF.");
+            setStep("upload");
+        }
     };
 
     const handleSubmit = async () => {
-        if (!file) { toast.error("Please upload your resume."); return; }
-        setLoading(true);
+        if (!resumeText) { toast.error("Please upload your resume."); return; }
+        setStep("analyzing");
         try {
-            const formData = new FormData();
-            formData.append("resume", file);
-            if (targetRole) formData.append("targetRole", targetRole);
-
-            const res = await fetch("/api/tools/improve-resume", { method: "POST", body: formData });
+            const res = await fetch("/api/tools/improve-resume", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ resumeText, targetRole }),
+            });
             const data = await res.json();
-            if (!data.success) { toast.error(data.error || "Analysis failed."); return; }
+            if (!data.success) { toast.error(data.error || "Analysis failed."); setStep("ready"); return; }
             setResult(data.result);
+            setStep("done");
         } catch {
             toast.error("Something went wrong.");
-        } finally {
-            setLoading(false);
+            setStep("ready");
         }
     };
 
@@ -76,30 +94,39 @@ export default function ImproveResumePage() {
                     onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
                     onDragLeave={() => setDragging(false)}
                     onDrop={(e) => { e.preventDefault(); setDragging(false); const f = e.dataTransfer.files[0]; if (f) handleFile(f); }}
-                    onClick={() => document.getElementById("improve-input")?.click()}
-                    className={`flex flex-col items-center justify-center gap-3 border-2 border-dashed rounded-2xl p-8 cursor-pointer transition-colors
-                        ${dragging ? "border-primary-200 bg-primary-200/5" : "border-light-600 hover:border-primary-200/50"}
-                        ${file ? "border-success-100/50 bg-success-100/5" : ""}`}
+                    onClick={() => step !== "extracting" && document.getElementById("improve-input")?.click()}
+                    className={`flex flex-col items-center justify-center gap-3 border-2 border-dashed rounded-2xl p-8 transition-colors
+                        ${step === "extracting" ? "border-primary-200/50 bg-primary-200/5 cursor-wait" : "cursor-pointer"}
+                        ${step === "ready" || step === "done" || step === "analyzing" ? "border-success-100/50 bg-success-100/5" : step !== "extracting" ? "border-light-600 hover:border-primary-200/50" : ""}`}
                 >
                     <input id="improve-input" type="file" accept=".pdf" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
-                    <span className="text-4xl">{file ? "✅" : "✨"}</span>
-                    <div className="text-center">
-                        {file ? (
-                            <>
-                                <p className="font-semibold text-white">{file.name}</p>
-                                <p className="text-light-400 text-sm">Click to change</p>
-                            </>
-                        ) : (
-                            <>
-                                <p className="font-semibold text-white">Drop your resume here</p>
-                                <p className="text-light-400 text-sm">PDF only, max 5MB</p>
-                            </>
-                        )}
-                    </div>
+                    {step === "extracting" ? (
+                        <>
+                            <span className="size-8 border-2 border-primary-200/30 border-t-primary-200 rounded-full animate-spin" />
+                            <p className="text-light-400 text-sm">Reading your resume...</p>
+                        </>
+                    ) : (
+                        <>
+                            <span className="text-4xl">{step === "upload" ? "✨" : "✅"}</span>
+                            <div className="text-center">
+                                {file ? (
+                                    <>
+                                        <p className="font-semibold text-white">{file.name}</p>
+                                        <p className="text-light-400 text-sm">Click to change</p>
+                                    </>
+                                ) : (
+                                    <>
+                                        <p className="font-semibold text-white">Drop your resume here</p>
+                                        <p className="text-light-400 text-sm">PDF only, max 5MB</p>
+                                    </>
+                                )}
+                            </div>
+                        </>
+                    )}
                 </div>
 
                 <div className="flex flex-col gap-2">
-                    <label className="text-sm text-light-400">Target Role (optional)</label>
+                    <label className="text-sm text-light-400">Target Role <span className="text-light-600">(optional)</span></label>
                     <input
                         type="text"
                         value={targetRole}
@@ -109,26 +136,24 @@ export default function ImproveResumePage() {
                     />
                 </div>
 
-                <Button className="btn-primary" onClick={handleSubmit} disabled={loading || !file}>
-                    {loading ? (
+                <Button className="btn-primary" onClick={handleSubmit} disabled={step === "extracting" || step === "analyzing" || !resumeText}>
+                    {step === "analyzing" ? (
                         <span className="flex items-center gap-2">
                             <span className="size-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                             Analysing Resume...
                         </span>
-                    ) : "Improve My Resume"}
+                    ) : step === "extracting" ? "Reading PDF..." : "Improve My Resume"}
                 </Button>
             </div>
 
             {result && (
                 <div className="flex flex-col gap-6">
-                    {/* Overall rating */}
                     <div className="bg-dark-200 rounded-2xl p-6 flex flex-col items-center gap-2">
                         <p className="text-light-400 text-sm">Resume Rating</p>
                         <p className={`text-7xl font-bold ${ratingColor}`}>{result.overallRating}<span className="text-3xl text-light-400">/10</span></p>
                         <p className="text-center text-sm text-light-400 mt-2 max-w-md">{result.summary}</p>
                     </div>
 
-                    {/* Improvements */}
                     <div className="bg-dark-200 rounded-2xl p-6 flex flex-col gap-4">
                         <h3 className="text-primary-100">Improvements Needed</h3>
                         {result.improvements?.map((imp, i) => (
@@ -143,7 +168,6 @@ export default function ImproveResumePage() {
                         ))}
                     </div>
 
-                    {/* Bullet point improvements */}
                     {result.bulletPointSuggestions?.length > 0 && (
                         <div className="bg-dark-200 rounded-2xl p-6 flex flex-col gap-4">
                             <h3 className="text-primary-100">Bullet Point Rewrites</h3>
@@ -162,7 +186,6 @@ export default function ImproveResumePage() {
                         </div>
                     )}
 
-                    {/* Skills + Power Words */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         {result.skillsToAdd?.length > 0 && (
                             <div className="bg-dark-200 rounded-2xl p-6 flex flex-col gap-3">
@@ -186,7 +209,6 @@ export default function ImproveResumePage() {
                         )}
                     </div>
 
-                    {/* Formatting tips */}
                     {result.formattingTips?.length > 0 && (
                         <div className="bg-dark-200 rounded-2xl p-6 flex flex-col gap-3">
                             <h3 className="text-primary-100">Formatting Tips</h3>

@@ -1,27 +1,17 @@
 import { NextRequest } from "next/server";
 import Groq from "groq-sdk";
-import { extractText } from "unpdf";
 
-export const maxDuration = 60;
+export const maxDuration = 30;
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 export async function POST(req: NextRequest) {
     try {
-        const formData = await req.formData();
-        const file = formData.get("resume") as File | null;
-        const jobDescription = (formData.get("jobDescription") as string) || "";
-
-        if (!file) {
-            return Response.json({ success: false, error: "Resume is required" }, { status: 400 });
-        }
-
-        const arrayBuffer = await file.arrayBuffer();
-        const { text: pages } = await extractText(new Uint8Array(arrayBuffer), { mergePages: true });
-        const resumeText = Array.isArray(pages) ? pages.join(" ").trim() : String(pages).trim();
+        const body = await req.json();
+        const { resumeText, jobDescription } = body;
 
         if (!resumeText || resumeText.length < 50) {
-            return Response.json({ success: false, error: "Could not extract text from PDF." }, { status: 400 });
+            return Response.json({ success: false, error: "Resume text is required" }, { status: 400 });
         }
 
         const prompt = jobDescription

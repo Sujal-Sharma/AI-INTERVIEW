@@ -1,36 +1,21 @@
 import { NextRequest } from "next/server";
 import Groq from "groq-sdk";
-import { extractText } from "unpdf";
 
-export const maxDuration = 60;
+export const maxDuration = 30;
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 export async function POST(req: NextRequest) {
     try {
-        const formData = await req.formData();
-        const file = formData.get("resume") as File | null;
-        const question = (formData.get("question") as string) || "";
-        const resumeContext = (formData.get("resumeContext") as string) || "";
+        const body = await req.json();
+        const { resumeText, question } = body;
 
         if (!question) {
             return Response.json({ success: false, error: "Question is required" }, { status: 400 });
         }
 
-        let resumeText = resumeContext;
-
-        if (file && !resumeContext) {
-            const arrayBuffer = await file.arrayBuffer();
-            const { text: pages } = await extractText(new Uint8Array(arrayBuffer), { mergePages: true });
-            resumeText = Array.isArray(pages) ? pages.join(" ").trim() : String(pages).trim();
-
-            if (!resumeText || resumeText.length < 50) {
-                return Response.json({ success: false, error: "Could not extract text from PDF." }, { status: 400 });
-            }
-        }
-
-        if (!resumeText) {
-            return Response.json({ success: false, error: "Resume content is required" }, { status: 400 });
+        if (!resumeText || resumeText.length < 50) {
+            return Response.json({ success: false, error: "Resume text is required" }, { status: 400 });
         }
 
         const completion = await groq.chat.completions.create({
@@ -49,12 +34,12 @@ ${resumeText.slice(0, 2500)}`,
                 }
             ],
             temperature: 0.7,
-            max_tokens: 800,
+            max_tokens: 600,
         });
 
         const answer = completion.choices[0]?.message?.content ?? "";
 
-        return Response.json({ success: true, answer, resumeContext: resumeText.slice(0, 2500) }, { status: 200 });
+        return Response.json({ success: true, answer }, { status: 200 });
     } catch (error: unknown) {
         console.error("Resume QA error:", error);
         const message = error instanceof Error ? error.message : "Unknown error";

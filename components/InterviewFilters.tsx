@@ -5,7 +5,7 @@ import { useCallback } from "react";
 const LEVELS = ["All", "Junior", "Mid", "Senior"];
 const TYPES = ["All", "Technical", "Behavioral", "Mixed"];
 
-const InterviewFilters = () => {
+const InterviewFilters = ({ basePath = "/" }: { basePath?: string }) => {
     const router = useRouter();
     const searchParams = useSearchParams();
     const level = searchParams.get("level") ?? "All";
@@ -15,8 +15,9 @@ const InterviewFilters = () => {
         const params = new URLSearchParams(searchParams.toString());
         if (value === "All") params.delete(key);
         else params.set(key, value);
-        router.push(`/?${params.toString()}`);
-    }, [router, searchParams]);
+        const qs = params.toString();
+        router.push(qs ? `${basePath}?${qs}` : basePath);
+    }, [router, searchParams, basePath]);
 
     return (
         <div className="flex flex-wrap gap-4 items-center">

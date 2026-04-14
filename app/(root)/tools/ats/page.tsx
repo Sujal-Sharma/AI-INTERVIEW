@@ -34,36 +34,55 @@ const ScoreBar = ({ label, score }: { label: string; score: number }) => {
     );
 };
 
+type Step = "upload" | "extracting" | "ready" | "analyzing" | "done";
+
 export default function ATSPage() {
     const [file, setFile] = useState<File | null>(null);
+    const [resumeText, setResumeText] = useState("");
     const [jd, setJd] = useState("");
-    const [loading, setLoading] = useState(false);
+    const [step, setStep] = useState<Step>("upload");
     const [result, setResult] = useState<ATSResult | null>(null);
     const [dragging, setDragging] = useState(false);
 
-    const handleFile = (f: File) => {
+    const handleFile = async (f: File) => {
         if (f.type !== "application/pdf") { toast.error("Please upload a PDF file."); return; }
         if (f.size > 5 * 1024 * 1024) { toast.error("File must be under 5MB."); return; }
         setFile(f);
+        setResumeText("");
         setResult(null);
+        setStep("extracting");
+
+        try {
+            const formData = new FormData();
+            formData.append("resume", f);
+            const res = await fetch("/api/tools/extract", { method: "POST", body: formData });
+            const data = await res.json();
+            if (!data.success) { toast.error(data.error || "Failed to read PDF."); setStep("upload"); return; }
+            setResumeText(data.text);
+            setStep("ready");
+            toast.success("Resume loaded. Now check your score!");
+        } catch {
+            toast.error("Failed to process PDF.");
+            setStep("upload");
+        }
     };
 
     const handleSubmit = async () => {
-        if (!file) { toast.error("Please upload your resume."); return; }
-        setLoading(true);
+        if (!resumeText) { toast.error("Please upload your resume first."); return; }
+        setStep("analyzing");
         try {
-            const formData = new FormData();
-            formData.append("resume", file);
-            if (jd) formData.append("jobDescription", jd);
-
-            const res = await fetch("/api/tools/ats", { method: "POST", body: formData });
+            const res = await fetch("/api/tools/ats", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ resumeText, jobDescription: jd }),
+            });
             const data = await res.json();
-            if (!data.success) { toast.error(data.error || "Analysis failed."); return; }
+            if (!data.success) { toast.error(data.error || "Analysis failed."); setStep("ready"); return; }
             setResult(data.result);
+            setStep("done");
         } catch {
             toast.error("Something went wrong.");
-        } finally {
-            setLoading(false);
+            setStep("ready");
         }
     };
 
@@ -79,36 +98,45 @@ export default function ATSPage() {
             </div>
 
             <div className="flex flex-col gap-6">
-                {/* Upload */}
+                {/* Upload zone */}
                 <div
                     onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
                     onDragLeave={() => setDragging(false)}
                     onDrop={(e) => { e.preventDefault(); setDragging(false); const f = e.dataTransfer.files[0]; if (f) handleFile(f); }}
-                    onClick={() => document.getElementById("ats-input")?.click()}
-                    className={`flex flex-col items-center justify-center gap-3 border-2 border-dashed rounded-2xl p-8 cursor-pointer transition-colors
-                        ${dragging ? "border-primary-200 bg-primary-200/5" : "border-light-600 hover:border-primary-200/50"}
-                        ${file ? "border-success-100/50 bg-success-100/5" : ""}`}
+                    onClick={() => step !== "extracting" && document.getElementById("ats-input")?.click()}
+                    className={`flex flex-col items-center justify-center gap-3 border-2 border-dashed rounded-2xl p-8 transition-colors
+                        ${step === "extracting" ? "border-primary-200/50 bg-primary-200/5 cursor-wait" : "cursor-pointer"}
+                        ${step === "ready" || step === "done" || step === "analyzing" ? "border-success-100/50 bg-success-100/5" : step !== "extracting" ? "border-light-600 hover:border-primary-200/50" : ""}`}
                 >
                     <input id="ats-input" type="file" accept=".pdf" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
-                    <span className="text-4xl">{file ? "✅" : "📄"}</span>
-                    <div className="text-center">
-                        {file ? (
-                            <>
-                                <p className="font-semibold text-white">{file.name}</p>
-                                <p className="text-light-400 text-sm">Click to change</p>
-                            </>
-                        ) : (
-                            <>
-                                <p className="font-semibold text-white">Drop your resume here</p>
-                                <p className="text-light-400 text-sm">PDF only, max 5MB</p>
-                            </>
-                        )}
-                    </div>
+                    {step === "extracting" ? (
+                        <>
+                            <span className="size-8 border-2 border-primary-200/30 border-t-primary-200 rounded-full animate-spin" />
+                            <p className="text-light-400 text-sm">Reading your resume...</p>
+                        </>
+                    ) : (
+                        <>
+                            <span className="text-4xl">{step === "upload" ? "📄" : "✅"}</span>
+                            <div className="text-center">
+                                {file ? (
+                                    <>
+                                        <p className="font-semibold text-white">{file.name}</p>
+                                        <p className="text-light-400 text-sm">Click to change</p>
+                                    </>
+                                ) : (
+                                    <>
+                                        <p className="font-semibold text-white">Drop your resume here</p>
+                                        <p className="text-light-400 text-sm">PDF only, max 5MB</p>
+                                    </>
+                                )}
+                            </div>
+                        </>
+                    )}
                 </div>
 
                 {/* JD optional */}
                 <div className="flex flex-col gap-2">
-                    <label className="text-sm text-light-400">Job Description (optional — for targeted scoring)</label>
+                    <label className="text-sm text-light-400">Job Description <span className="text-light-600">(optional — for targeted scoring)</span></label>
                     <textarea
                         value={jd}
                         onChange={(e) => setJd(e.target.value)}
@@ -118,19 +146,18 @@ export default function ATSPage() {
                     />
                 </div>
 
-                <Button className="btn-primary" onClick={handleSubmit} disabled={loading || !file}>
-                    {loading ? (
+                <Button className="btn-primary" onClick={handleSubmit} disabled={step === "extracting" || step === "analyzing" || !resumeText}>
+                    {step === "analyzing" ? (
                         <span className="flex items-center gap-2">
                             <span className="size-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                             Analysing...
                         </span>
-                    ) : "Check ATS Score"}
+                    ) : step === "extracting" ? "Reading PDF..." : "Check ATS Score"}
                 </Button>
             </div>
 
             {result && (
                 <div className="flex flex-col gap-6">
-                    {/* Overall score */}
                     <div className="bg-dark-200 rounded-2xl p-6 flex flex-col items-center gap-2">
                         <p className="text-light-400 text-sm">Overall ATS Score</p>
                         <p className={`text-7xl font-bold ${scoreColor}`}>{result.overallScore}</p>
@@ -138,7 +165,6 @@ export default function ATSPage() {
                         <p className="text-center text-sm text-light-400 mt-2 max-w-md">{result.summary}</p>
                     </div>
 
-                    {/* Section scores */}
                     <div className="bg-dark-200 rounded-2xl p-6 flex flex-col gap-4">
                         <h3 className="text-primary-100">Section Breakdown</h3>
                         {Object.entries(result.sections).map(([key, val]) => (
@@ -146,15 +172,12 @@ export default function ATSPage() {
                         ))}
                     </div>
 
-                    {/* Strengths & Weaknesses */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="bg-dark-200 rounded-2xl p-6 flex flex-col gap-3">
                             <h3 className="text-success-100">Strengths</h3>
                             <ul className="flex flex-col gap-2">
                                 {result.strengths.map((s, i) => (
-                                    <li key={i} className="flex items-start gap-2 text-sm text-light-100">
-                                        <span className="text-success-100 mt-0.5">✓</span>{s}
-                                    </li>
+                                    <li key={i} className="flex items-start gap-2 text-sm text-light-100"><span className="text-success-100 mt-0.5">✓</span>{s}</li>
                                 ))}
                             </ul>
                         </div>
@@ -162,29 +185,23 @@ export default function ATSPage() {
                             <h3 className="text-destructive-100">Weaknesses</h3>
                             <ul className="flex flex-col gap-2">
                                 {result.weaknesses.map((w, i) => (
-                                    <li key={i} className="flex items-start gap-2 text-sm text-light-100">
-                                        <span className="text-destructive-100 mt-0.5">✗</span>{w}
-                                    </li>
+                                    <li key={i} className="flex items-start gap-2 text-sm text-light-100"><span className="text-destructive-100 mt-0.5">✗</span>{w}</li>
                                 ))}
                             </ul>
                         </div>
                     </div>
 
-                    {/* Missing keywords */}
                     {result.missingKeywords?.length > 0 && (
                         <div className="bg-dark-200 rounded-2xl p-6 flex flex-col gap-3">
                             <h3 className="text-primary-100">Missing Keywords</h3>
                             <div className="flex flex-wrap gap-2">
                                 {result.missingKeywords.map((kw, i) => (
-                                    <span key={i} className="px-3 py-1 bg-dark-300 text-light-400 rounded-full text-sm border border-light-600/20">
-                                        {kw}
-                                    </span>
+                                    <span key={i} className="px-3 py-1 bg-dark-300 text-light-400 rounded-full text-sm border border-light-600/20">{kw}</span>
                                 ))}
                             </div>
                         </div>
                     )}
 
-                    {/* Recommendations */}
                     <div className="bg-dark-200 rounded-2xl p-6 flex flex-col gap-3">
                         <h3 className="text-primary-100">Recommendations</h3>
                         <ol className="flex flex-col gap-2">

@@ -33,6 +33,12 @@ const navItems: NavDropdown[] = [
                 description: "Questions tailored to your resume",
                 icon: "📄",
             },
+            {
+                label: "Sample Interviews",
+                href: "/sample-interviews",
+                description: "Practice with interviews from other users",
+                icon: "🗂️",
+            },
         ],
     },
     {

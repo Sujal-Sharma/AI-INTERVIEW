@@ -1,39 +1,25 @@
 import { NextRequest } from "next/server";
 import Groq from "groq-sdk";
-import { extractText } from "unpdf";
 
-export const maxDuration = 60;
+export const maxDuration = 30;
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 export async function POST(req: NextRequest) {
     try {
-        const formData = await req.formData();
-        const file = formData.get("resume") as File | null;
-        const jobDescription = (formData.get("jobDescription") as string) || "";
-        const mode = (formData.get("mode") as string) || "optimize"; // "optimize" | "generate"
-        const name = (formData.get("name") as string) || "";
-        const email = (formData.get("email") as string) || "";
+        const body = await req.json();
+        const { resumeText, jobDescription, mode, name, email } = body;
 
         if (!jobDescription) {
             return Response.json({ success: false, error: "Job description is required" }, { status: 400 });
         }
 
-        let resumeText = "";
-        if (file) {
-            const arrayBuffer = await file.arrayBuffer();
-            const { text: pages } = await extractText(new Uint8Array(arrayBuffer), { mergePages: true });
-            resumeText = Array.isArray(pages) ? pages.join(" ").trim() : String(pages).trim();
-        }
-
         if (mode === "optimize" && (!resumeText || resumeText.length < 50)) {
-            return Response.json({ success: false, error: "Resume is required for optimization mode." }, { status: 400 });
+            return Response.json({ success: false, error: "Resume text is required for optimization mode." }, { status: 400 });
         }
-
-        const systemPrompt = "You are an expert resume writer. Always respond with valid JSON only.";
 
         const userPrompt = mode === "optimize"
-            ? `Optimize this resume for the job description below. Rewrite bullet points, highlight relevant skills, and tailor the summary.
+            ? `You are an expert ATS resume writer. Optimize the resume below for the given job description.
 
 Resume:
 ${resumeText.slice(0, 2000)}
@@ -43,38 +29,38 @@ ${jobDescription.slice(0, 1000)}
 
 Return ONLY a JSON object:
 {
-  "summary": "<tailored professional summary 2-3 sentences>",
-  "keySkills": ["<skill1>", "<skill2>", "<skill3>", "<skill4>", "<skill5>", "<skill6>"],
+  "summary": "<tailored professional summary 3 sentences, ATS-optimized>",
+  "keySkills": ["<skill1>", "<skill2>", "<skill3>", "<skill4>", "<skill5>", "<skill6>", "<skill7>", "<skill8>"],
   "tailoredBullets": [
-    { "section": "<Experience/Project name>", "bullets": ["<bullet 1>", "<bullet 2>"] }
+    { "section": "<Experience/Project name from resume>", "bullets": ["<strong action verb + metric bullet>", "<bullet 2>", "<bullet 3>"] }
   ],
-  "missingKeywords": ["<keyword to add>"],
-  "fullResumeText": "<complete optimized resume in plain text format with sections: Summary, Skills, Experience, Education>"
+  "missingKeywords": ["<JD keyword added to resume>", "<keyword 2>", "<keyword 3>"],
+  "fullResumeText": "<complete ATS-optimized resume in structured plain text. Include sections: CONTACT INFO, PROFESSIONAL SUMMARY, TECHNICAL SKILLS, WORK EXPERIENCE (with role, company, dates, 3-4 strong bullet points each), EDUCATION, PROJECTS. Make it detailed enough to fill a full page.>"
 }`
-            : `Generate a professional resume for someone applying to this job.
+            : `You are an expert ATS resume writer. Generate a complete professional resume for this job description.
 
-${name ? `Candidate Name: ${name}` : ""}
-${email ? `Email: ${email}` : ""}
+${name ? `Candidate Name: ${name}` : "Candidate Name: [Your Name]"}
+${email ? `Email: ${email}` : "Email: [your@email.com]"}
 
 Job Description:
 ${jobDescription.slice(0, 1000)}
 
 Return ONLY a JSON object:
 {
-  "summary": "<professional summary 2-3 sentences>",
-  "keySkills": ["<skill1>", "<skill2>", "<skill3>", "<skill4>", "<skill5>", "<skill6>"],
-  "fullResumeText": "<complete resume template in plain text with sections: Contact, Summary, Skills, Experience (with placeholder bullets), Education, Projects>"
+  "summary": "<compelling professional summary 3 sentences tailored to the JD>",
+  "keySkills": ["<skill1>", "<skill2>", "<skill3>", "<skill4>", "<skill5>", "<skill6>", "<skill7>", "<skill8>"],
+  "fullResumeText": "<complete ATS-optimized resume in structured plain text. Include sections: CONTACT INFO (with name, email, LinkedIn placeholder, GitHub placeholder), PROFESSIONAL SUMMARY (3 sentences), TECHNICAL SKILLS (categorized), WORK EXPERIENCE (2-3 relevant positions with strong bullets using action verbs and metrics), EDUCATION, PROJECTS (2-3 relevant projects). Each section should be detailed and keyword-rich. Format cleanly so it fills a full page.>"
 }`;
 
         const completion = await groq.chat.completions.create({
             model: "llama-3.3-70b-versatile",
             messages: [
-                { role: "system", content: systemPrompt },
+                { role: "system", content: "You are an expert ATS resume writer. Always respond with valid JSON only. Never truncate the fullResumeText field — it must be complete." },
                 { role: "user", content: userPrompt }
             ],
             response_format: { type: "json_object" },
-            temperature: 0.6,
-            max_tokens: 2000,
+            temperature: 0.5,
+            max_tokens: 2500,
         });
 
         const raw = completion.choices[0]?.message?.content ?? "{}";

@@ -3,19 +3,15 @@ import {Button} from "@/components/ui/button";
 import Link from "next/link";
 import Image from 'next/image'
 import InterviewCard from "@/components/InterviewCard";
-import InterviewCardSkeleton from "@/components/InterviewCardSkeleton";
 import InterviewFilters from "@/components/InterviewFilters";
 import {getCurrentUser} from "@/lib/actions/auth.action";
-import {getInterviewsByUserId, getLatestInterviews} from "@/lib/actions/general.action"
+import {getInterviewsByUserId} from "@/lib/actions/general.action"
 
 const Page = async ({ searchParams }: RouteParams) => {
     const user = await getCurrentUser();
     const { level, type } = await searchParams;
 
-    const [userInterviews, latestInterviews] = await Promise.all([
-        getInterviewsByUserId(user?.id ?? ''),
-        getLatestInterviews({ userId: user?.id ?? '' })
-    ]);
+    const userInterviews = await getInterviewsByUserId(user?.id ?? '');
 
     const filterInterviews = (interviews: Interview[] | null) => {
         if (!interviews) return [];
@@ -27,10 +23,7 @@ const Page = async ({ searchParams }: RouteParams) => {
     };
 
     const filteredUserInterviews = filterInterviews(userInterviews);
-    const filteredLatestInterviews = filterInterviews(latestInterviews);
-
     const hasPastInterviews = filteredUserInterviews.length > 0;
-    const hasUpcomingInterviews = filteredLatestInterviews.length > 0;
 
     return (
         <>
@@ -77,20 +70,6 @@ const Page = async ({ searchParams }: RouteParams) => {
                                 <p className="text-light-400">No interviews match the selected filters.</p>
                             )}
                         </div>
-                    )}
-                </div>
-            </section>
-
-            <section className="flex flex-col gap-6 mt-8">
-                <h2>Sample Interviews</h2>
-                <p className="text-light-400 -mt-3 text-sm">Try interviews created by other users to practise</p>
-                <div className="interviews-section">
-                    {hasUpcomingInterviews ? (
-                        filteredLatestInterviews.map((interview) => (
-                            <InterviewCard {...interview} key={interview.id} />
-                        ))
-                    ) : (
-                        <p className="text-light-400">No sample interviews available yet.</p>
                     )}
                 </div>
             </section>
