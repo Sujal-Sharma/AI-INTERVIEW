@@ -4,6 +4,8 @@ import { db } from "@/firebase/admin";
 import { getRandomInterviewCover } from "@/lib/utils";
 import { extractText } from "unpdf";
 
+export const maxDuration = 60;
+
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 export async function POST(req: NextRequest) {
@@ -18,7 +20,6 @@ export async function POST(req: NextRequest) {
             return Response.json({ success: false, error: "Resume and userId are required" }, { status: 400 });
         }
 
-        // Parse PDF using unpdf (works in edge/serverless)
         const arrayBuffer = await file.arrayBuffer();
         const { text: pages } = await extractText(new Uint8Array(arrayBuffer), { mergePages: true });
         const resumeText = Array.isArray(pages) ? pages.join(" ").trim() : String(pages).trim();
@@ -27,7 +28,6 @@ export async function POST(req: NextRequest) {
             return Response.json({ success: false, error: "Could not extract text from PDF. Make sure it is not a scanned image." }, { status: 400 });
         }
 
-        // Extract resume info + generate questions
         const completion = await groq.chat.completions.create({
             model: "llama-3.3-70b-versatile",
             messages: [
@@ -40,25 +40,25 @@ export async function POST(req: NextRequest) {
                     content: `Analyze this resume and generate ${amount} interview questions tailored specifically to this candidate's experience and skills.
 
 Resume:
-${resumeText.slice(0, 4000)}
+${resumeText.slice(0, 3000)}
 
-Return ONLY a JSON object in this exact format:
+Return ONLY a JSON object:
 {
-  "role": "<inferred job role from resume>",
-  "level": "<Junior|Mid|Senior based on years of experience>",
+  "role": "<inferred job role>",
+  "level": "<Junior|Mid|Senior>",
   "techstack": ["<tech1>", "<tech2>", "<tech3>"],
   "questions": ["<question 1>", "<question 2>", ...]
 }
 
 Rules:
-- Questions must be specific to the candidate's actual experience, projects, and skills
-- Mix technical and behavioral questions
-- Do not use special characters like * or / that would break a voice assistant
-- The questions array must have exactly ${amount} questions`
+- Questions specific to candidate's actual experience and projects
+- No special characters like * or / (will be read by voice assistant)
+- Exactly ${amount} questions`
                 }
             ],
             response_format: { type: "json_object" },
             temperature: 0.7,
+            max_tokens: 1024,
         });
 
         const raw = completion.choices[0]?.message?.content ?? "{}";
@@ -82,7 +82,6 @@ Rules:
         };
 
         const docRef = await db.collection("interviews").add(interview);
-
         return Response.json({ success: true, interviewId: docRef.id }, { status: 200 });
     } catch (error: unknown) {
         console.error("Resume upload error:", error);
